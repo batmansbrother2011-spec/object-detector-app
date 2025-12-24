@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0">
+    <title>Quest 3 Object Detector</title>
+    <link rel="icon" type="image/png" href="favicon.png">
+    <style>
+        /* Basic VR Styles */
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap');
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: #121212;
+            color: #ffffff;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        /* Main Content Container */
+        #main-container {
+            text-align: center;
+            width: 70%;
+            max-width: 350px;
+            padding: 20px;
+        }
+
+        h1 {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+        
+        p {
+            font-size: 16px;
+            line-height: 1.5;
+            margin-bottom: 15px;
+        }
+
+        .instruction {
+            background-color: #2a2a2a;
+            padding: 10px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        /* Button to request VR session and start detection */
+        #detect-button {
+            background-color: #00bfff; /* Sky Blue */
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        
+        #detect-button:hover {
+            background-color: #1e90ff; /* Deep Sky Blue */
+        }
+
+        /* Display area for detected objects */
+        #results-container {
+            display: none; /* Hidden by default */
+            width: 70%;
+            max-width: 350px;
+            margin: 0 auto;
+            background-color: #1e1e1e;
+            padding: 20px;
+            border-radius: 8px;
+        }
+
+        .result {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 15px;
+        }
+        
+        /* We'll use an image element to show the detected object's "magnification" */
+        #detected-image {
+            width: 80px; /* Can be scaled dynamically */
+            height: 80px;
+            object-fit: cover;
+            border-radius: 4px;
+            margin-right: 15px;
+        }
+        
+        .result-text {
+            font-size: 18px;
+            font-weight: 500;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div id="main-container">
+        <h1>Quest 3 Object Viewer</h1>
+        <p>Point your focus at an object to see what it is.</p>
+        
+        <div class="instruction">
+            This app uses your headset's internal camera to analyze the world. It requires head tracking to function correctly.
+        </div>
+
+        <button id="detect-button">Start Detecting</button>
+        
+        <div id="results-container">
+            <h2>Detected Object:</h2>
+            <div class="result">
+                <img id="detected-image" src="placeholder.jpg" alt="Detected Object Preview">
+                <div class="result-text" id="result-text">Loading...</div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/media管@0.10.7/dist/mediapipe.min.js"></script>
+    <script>
+        // Declare variables
+        let vrDisplay = null;
+        let objectDetection = null;
+        let videoElement = null;
+
+        const detectButton = document.getElementById('detect-button');
+        const resultsContainer = document.getElementById('results-container');
+        const resultText = document.getElementById('result-text');
+
+        // Initialize the app
+        async function init() {
+            // 1. Request a VR session
+            try {
+                vrDisplay = await navigator.getVRDevices();
+                if (!vrDisplay) {
+                    alert("No VR device found. Please connect your Quest 3.");
+                    return;
+                }
+
+                // Create a VR session
+                const vrSession = await navigator.requestVRSession(vrDisplay[0].id, { requiredFeatures: ['positional-tracking-unreliable'] });
+
+                // Wait for the VR display to be ready
+                await vrSession.requestAnimationFrame(renderLoop);
+
+                // 2. Set up the computer vision model
+                objectDetection = await setupObjectDetection();
+
+                // 3. Request access to the front-facing camera
+                videoElement = document.createElement('video');
+                videoElement.setAttribute('playsinline', true);
+                
+                try {
+                    // Attempt to use the VR video track
+                    const tracks = vrSession.getVideoTracks();
+                    if (tracks.length > 0) {
+                        videoElement.srcObject = tracks[0];
+                    }
+                } catch (error) {
+                    // Fallback: Ask permission for the standard camera
+                    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                    videoElement.srcObject = stream;
+                }
+
+                // 4. Start processing
+                resultsContainer.style.display = "block";
+                
+            } catch (error) {
+                console.error("Error initializing app:", error);
+                alert("Failed to set up the VR session. Please try again.");
+            }
+        }
+
+        // Set up the object detection model
+        async function setupObjectDetection() {
+            // We use MediaPipe's lightweight 'objects' detector
+            // The 'loadWasm' method is used for faster WebAssembly execution on the device.
+            return await mediapipe.objects.loadWasm();
+        }
+
+        // Function to run each frame
+        function renderLoop(time) {
+            // 1. Request another frame
+            requestAnimationFrame(renderLoop);
+
+            // 2. Process the video feed if we have it
+            if (videoElement && videoElement.readyState === video.ELEMENT_READY_STATE) {
+                // Get video properties
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                
+                // Set canvas size to match video
+                canvas.width = videoElement.videoWidth;
+                canvas.height = videoElement.videoHeight;
+
+                // Draw the video feed on the canvas
+                ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
+
+                // Run the AI model on the canvas's data
+                const results = await objectDetection.detect(canvas);
+                
+                // 3. Display results if we have predictions
+                if (results && results[0]) {
+                    const className = results[0].classification[0].className;
+                    const confidence = results[0].classification[0].score;
+
+                    // Only show results above a certain confidence threshold
+                    if (confidence > 0.5) {
+                        resultText.textContent = `${className} (${(confidence * 100).toFixed(2)}% confidence`;
+                        
+                        // Here, you would typically use the 3D pose estimation to place an visual marker
+                        // in the VR scene. This is a simplification focused on the text output.
+                    } else {
+                        resultText.textContent = "Nothing detected...";
+                    }
+                } else {
+                    resultText.textContent = "Waiting for object...";
+                }
+            }
+        }
+
+        // Event listener for the button
+        detectButton.addEventListener('click', async () => {
+            init();
+        });
+
+        // Start listening for user input immediately
+        document.addEventListener('DOMContentLoaded', () => {
+            // The 'detect' function is disabled by default.
+            // You can enable it with JavaScript or through a VR menu later.
+        });
+
+    </script>
+</body>
+</html>
