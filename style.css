@@ -1,0 +1,86 @@
+/* This can be combined with the HTML's <style> section, but here's a clean version for clarity. */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap');
+
+body {
+    font-family: 'Poppins', sans-serif;
+    background-color: #121212;
+    color: #ffffff;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    overflow: hidden;
+}
+
+#main-container {
+    text-align: center;
+    width: 70%;
+    max-width: 350px;
+    padding: 20px;
+}
+
+h1 {
+    font-size: 24px;
+    font-weight: 600;
+    margin-bottom: 10px;
+}
+
+p {
+    font-size: 16px;
+    line-height: 1.5;
+    margin-bottom: 15px;
+}
+
+.instruction {
+    background-color: #2a2a2a;
+    padding: 10px 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+#detect-button {
+    background-color: #00bfff; /* Sky Blue */
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    font-size: 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+#detect-button:hover {
+    background-color: #1e90ff; /* Deep Sky Blue */
+}
+
+#results-container {
+    display: none; /* Hidden by default */
+    width: 70%;
+    max-width: 350px;
+    margin: 0 auto;
+    background-color: #1e1e1e;
+    padding: 20px;
+    border-radius: 8px;
+}
+
+.result {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 15px;
+}
+
+#detected-image {
+    width: 80px; /* Can be scaled dynamically */
+    height: 80px;
+    object-fit: cover;
+    border-radius: 4px;
+    margin-right: 15px;
+}
+
+.result-text {
+    font-size: 18px;
+    font-weight: 500;
+}
